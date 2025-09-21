@@ -1,13 +1,18 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Calendar, Archive, ArchiveRestore, Trash2, Eye, FileText } from 'lucide-react';
+import { Calendar, Archive, ArchiveRestore, Trash2, Eye, FileText, Loader } from 'lucide-react';
 import parser from 'html-react-parser';
-import { archiveNote, unarchiveNote, deleteNote } from '../utils/local-data';
+import { archiveNote, unarchiveNote, deleteNote } from '../utils/network-data';
+import { formatTranslation } from '../utils';
 import { useDialog } from '../contexts/DialogContext';
+import { useLanguage } from '../contexts/LanguageContext';
 
 function NoteItem({ note, showArchiveButtons = false }) {
   const { id, title, body, createdAt, archived } = note;
   const { confirm, success, error } = useDialog();
+  const { t } = useLanguage();
+  const [isArchiving, setIsArchiving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
 
   const formatDate = (dateString) => {
@@ -32,39 +37,59 @@ function NoteItem({ note, showArchiveButtons = false }) {
   const handleArchiveToggle = async () => {
     const action = archived ? 'unarchive' : 'archive';
     const confirmed = await confirm(
-      `Are you sure you want to ${action} this note?`,
-      `${action.charAt(0).toUpperCase() + action.slice(1)} Note`
+      formatTranslation(t('confirmArchiveNote'), { action }),
+      `${action.charAt(0).toUpperCase() + action.slice(1)} ${t('note')}`
     );
 
     if (confirmed) {
       try {
+        setIsArchiving(true);
+        let apiError;
+        
         if (archived) {
-          unarchiveNote(id);
-          success('Note unarchived successfully!');
+          const result = await unarchiveNote(id);
+          apiError = result.error;
+          success(t('noteUnarchived'));
         } else {
-          archiveNote(id);
-          success('Note archived successfully!');
+          const result = await archiveNote(id);
+          apiError = result.error;
+          success(t('noteArchived'));
         }
+        
+        if (apiError) {
+          throw new Error('Failed to update note');
+        }
+        
         setTimeout(() => window.location.reload(), 1000);
       } catch (err) {
-        error('Failed to update note. Please try again.');
+        error(err.message || 'Failed to update note. Please try again.');
+      } finally {
+        setIsArchiving(false);
       }
     }
   };
 
   const handleDelete = async () => {
     const confirmed = await confirm(
-      'This action cannot be undone. Are you sure you want to delete this note?',
-      'Delete Note'
+      t('confirmDeleteNote'),
+      t('deleteNote')
     );
 
     if (confirmed) {
       try {
-        deleteNote(id);
-        success('Note deleted successfully!');
+        setIsDeleting(true);
+        const { error: apiError } = await deleteNote(id);
+        
+        if (apiError) {
+          throw new Error('Failed to delete note');
+        }
+        
+        success(t('noteDeleted'));
         setTimeout(() => window.location.reload(), 1000);
       } catch (err) {
-        error('Failed to delete note. Please try again.');
+        error(err.message || t('failedToDeleteNote'));
+      } finally {
+        setIsDeleting(false);
       }
     }
   };
@@ -95,19 +120,32 @@ function NoteItem({ note, showArchiveButtons = false }) {
 
         <div className="note-actions">
           <Link to={`/notes/${id}`} className="btn btn-outline">
-            <span>Read more</span>
+            <Eye size={16} />
+            <span>{t('readMore')}</span>
           </Link>
           
           {showArchiveButtons && (
             <button 
               className="btn btn-outline"
               onClick={handleArchiveToggle}
+              disabled={isArchiving}
               title={archived ? 'Unarchive note' : 'Archive note'}
             >
-              {archived ? (
-                <span>Unarchive</span>
+              {isArchiving ? (
+                <>
+                  <Loader size={16} className="spin" />
+                  <span>{t('processing')}</span>
+                </>
+              ) : archived ? (
+                <>
+                  <ArchiveRestore size={16} />
+                  <span>{t('unarchive')}</span>
+                </>
               ) : (
-                <span>Archive</span>
+                <>
+                  <Archive size={16} />
+                  <span>{t('archive')}</span>
+                </>
               )}
             </button>
           )}
@@ -115,14 +153,24 @@ function NoteItem({ note, showArchiveButtons = false }) {
           <button 
             className="btn btn-outline"
             onClick={handleDelete}
-            title="Delete note permanently"
+            disabled={isDeleting}
+            title={t('deleteNotePermanently')}
           >
-            <span>Delete</span>
+            {isDeleting ? (
+              <>
+                <Loader size={16} className="spin" />
+                <span>{t('processing')}</span>
+              </>
+            ) : (
+              <>
+                <Trash2 size={16} />
+                <span>{t('delete')}</span>
+              </>
+            )}
           </button>
         </div>
       </div>
-
-      {/* Note Thumbnail */}
+      
       <div className="note-thumbnail">
         <FileText size={24} />
       </div>

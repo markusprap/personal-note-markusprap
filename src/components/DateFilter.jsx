@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import { Calendar, X } from 'lucide-react';
+import { useLanguage } from '../contexts/LanguageContext';
 
 function DateFilter({ onFilter, notes }) {
+  const { t } = useLanguage();
   const [showFilter, setShowFilter] = useState(false);
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
@@ -51,7 +53,7 @@ function DateFilter({ onFilter, notes }) {
         type="button"
       >
         <Calendar size={20} />
-        Filter by Date
+        {t('filterByDate')}
         {isFilterActive && <span className="active-indicator">●</span>}
       </button>
 
@@ -59,7 +61,7 @@ function DateFilter({ onFilter, notes }) {
         <div className="date-filter-panel">
           <div className="date-filter-inputs">
             <div className="date-input-group">
-              <label htmlFor="startDate">From Date:</label>
+              <label htmlFor="startDate">{t('fromDate')}</label>
               <input
                 type="date"
                 id="startDate"
@@ -69,7 +71,7 @@ function DateFilter({ onFilter, notes }) {
             </div>
             
             <div className="date-input-group">
-              <label htmlFor="endDate">To Date:</label>
+              <label htmlFor="endDate">{t('toDate')}</label>
               <input
                 type="date"
                 id="endDate"
@@ -86,7 +88,7 @@ function DateFilter({ onFilter, notes }) {
               onClick={handleFilter}
               className="btn-primary"
             >
-              Apply Filter
+              {t('applyFilter')}
             </button>
             
             <button
@@ -95,7 +97,7 @@ function DateFilter({ onFilter, notes }) {
               className="btn-secondary"
             >
               <X size={16} />
-              Reset
+              {t('reset')}
             </button>
           </div>
         </div>

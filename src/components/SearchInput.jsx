@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { Search, X } from 'lucide-react';
+import { useLanguage } from '../contexts/LanguageContext';
 
 function SearchInput({ keyword, onSearch, placeholder = "Search..." }) {
+  const { t } = useLanguage();
   const [searchTerm, setSearchTerm] = useState(keyword);
 
   const handleInputChange = (e) => {
@@ -30,7 +32,7 @@ function SearchInput({ keyword, onSearch, placeholder = "Search..." }) {
           <button 
             className="search-clear-btn"
             onClick={handleClear}
-            title="Clear search"
+            title={t('clearSearch')}
           >
             <X size={16} />
           </button>

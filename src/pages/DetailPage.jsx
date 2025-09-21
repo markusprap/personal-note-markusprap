@@ -7,28 +7,49 @@ import {
   Archive, 
   ArchiveRestore, 
   Trash2, 
+  FileText, 
   Plus, 
-  FileText,
   Loader,
-  AlertCircle
+  AlertCircle 
 } from 'lucide-react';
 import parser from 'html-react-parser';
-import { getNote, deleteNote, archiveNote, unarchiveNote } from '../utils/local-data';
+import { getNote, archiveNote, unarchiveNote, deleteNote } from '../utils/network-data';
+import { formatTranslation } from '../utils';
 import { useDialog } from '../contexts/DialogContext';
+import { useLanguage } from '../contexts/LanguageContext';
 
 function DetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [note, setNote] = useState(null);
   const [loading, setLoading] = useState(true);
-  const { confirm, success, error } = useDialog();
+  const [error, setError] = useState(null);
+  const [isArchiving, setIsArchiving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const { confirm, success, error: errorDialog } = useDialog();
+  const { t } = useLanguage();
 
   useEffect(() => {
-    const foundNote = getNote(id);
-    if (foundNote) {
-      setNote(foundNote);
-    }
-    setLoading(false);
+    const loadNote = async () => {
+      try {
+        setLoading(true);
+        
+        const { error, data } = await getNote(id);
+        
+        if (!error && data) {
+          setNote(data);
+        } else {
+          setNote(null);
+        }
+      } catch (err) {
+        console.error('Error loading note:', err);
+        setNote(null);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadNote();
   }, [id]);
 
   const formatDate = (dateString) => {
@@ -46,17 +67,25 @@ function DetailPage() {
 
   const handleDelete = async () => {
     const confirmed = await confirm(
-      'This action cannot be undone. Are you sure you want to delete this note?',
-      'Delete Note'
+      t('confirmDeleteNote'),
+      t('deleteNote')
     );
 
     if (confirmed) {
       try {
-        deleteNote(id);
-        success('Note deleted successfully!');
+        setIsDeleting(true);
+        const { error: apiError } = await deleteNote(id);
+        
+        if (apiError) {
+          throw new Error('Failed to delete note');
+        }
+        
+        success(t('noteDeleted'));
         setTimeout(() => navigate('/'), 1500);
       } catch (err) {
-        error('Failed to delete note. Please try again.');
+        error(err.message || t('failedToDeleteNote'));
+      } finally {
+        setIsDeleting(false);
       }
     }
   };
@@ -64,27 +93,37 @@ function DetailPage() {
   const handleArchiveToggle = async () => {
     const action = note.archived ? 'unarchive' : 'archive';
     const confirmed = await confirm(
-      `Are you sure you want to ${action} this note?`,
-      `${action.charAt(0).toUpperCase() + action.slice(1)} Note`
+      formatTranslation(t('confirmArchiveNote'), { action }),
+      `${action.charAt(0).toUpperCase() + action.slice(1)} ${t('note')}`
     );
 
     if (confirmed) {
       try {
+        setIsArchiving(true);
+        let apiError;
+        
         if (note.archived) {
-          unarchiveNote(id);
-          success('Note unarchived successfully!');
+          const result = await unarchiveNote(id);
+          apiError = result.error;
+          success(t('noteUnarchived'));
         } else {
-          archiveNote(id);
-          success('Note archived successfully!');
+          const result = await archiveNote(id);
+          apiError = result.error;
+          success(t('noteArchived'));
         }
         
+        if (apiError) {
+          throw new Error('Failed to update note');
+        }
 
         setNote(prevNote => ({
           ...prevNote,
           archived: !prevNote.archived
         }));
       } catch (err) {
-        error('Failed to update note. Please try again.');
+        error(err.message || 'Failed to update note. Please try again.');
+      } finally {
+        setIsArchiving(false);
       }
     }
   };
@@ -96,7 +135,7 @@ function DetailPage() {
           <div className="loading-spinner">
             <Loader className="spin" size={48} />
           </div>
-          <p>Loading note...</p>
+          <p>{t('loading')}...</p>
         </div>
       </div>
     );
@@ -133,12 +172,12 @@ function DetailPage() {
           {note.archived ? (
             <>
               <Archive size={16} />
-              <span>Archived</span>
+              <span>{t('archived')}</span>
             </>
           ) : (
             <>
               <FileText size={16} />
-              <span>Active</span>
+              <span>{t('active')}</span>
             </>
           )}
         </span>
@@ -167,22 +206,28 @@ function DetailPage() {
       <div className="note-detail-actions">
         <Link to="/" className="btn btn-outline">
           <ArrowLeft size={16} />
-          <span>Back to Notes</span>
+          <span>{t('backToNotes')}</span>
         </Link>
         
         <button 
           className="btn btn-outline"
           onClick={handleArchiveToggle}
+          disabled={isArchiving}
         >
-          {note.archived ? (
+          {isArchiving ? (
+            <>
+              <Loader size={16} className="spin" />
+              <span>{t('processing')}</span>
+            </>
+          ) : note.archived ? (
             <>
               <ArchiveRestore size={16} />
-              <span>Unarchive</span>
+              <span>{t('unarchive')}</span>
             </>
           ) : (
             <>
               <Archive size={16} />
-              <span>Archive</span>
+              <span>{t('archive')}</span>
             </>
           )}
         </button>
@@ -190,18 +235,28 @@ function DetailPage() {
         <button 
           className="btn btn-outline"
           onClick={handleDelete}
+          disabled={isDeleting}
         >
-          <Trash2 size={16} />
-          <span>Delete</span>
+          {isDeleting ? (
+            <>
+              <Loader size={16} className="spin" />
+              <span>{t('processing')}</span>
+            </>
+          ) : (
+            <>
+              <Trash2 size={16} />
+              <span>{t('delete')}</span>
+            </>
+          )}
         </button>
       </div>
 
       <div className="related-actions">
-        <h3>Quick Actions</h3>
+        <h3>{t('quickActions')}</h3>
         <div className="quick-actions">
           <Link to="/add" className="btn btn-outline">
             <Plus size={16} />
-            <span>Add New Note</span>
+            <span>{t('addNewNote')}</span>
           </Link>
           <Link 
             to={note.archived ? "/archives" : "/"} 

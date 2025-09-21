@@ -1,12 +1,15 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, X, Save, Lightbulb, Type, FileText, Loader } from 'lucide-react';
-import { addNote } from '../utils/local-data';
+import { addNote } from '../utils/network-data';
+import { formatTranslation } from '../utils';
 import { useDialog } from '../contexts/DialogContext';
+import { useLanguage } from '../contexts/LanguageContext';
 
 function AddNotePage() {
   const navigate = useNavigate();
   const { confirm, success, error } = useDialog();
+  const { t } = useLanguage();
   const [formData, setFormData] = useState({
     title: '',
     body: ''
@@ -47,17 +50,19 @@ function AddNotePage() {
     setIsSubmitting(true);
 
     try {
-      await new Promise(resolve => setTimeout(resolve, 800));
-      
-      addNote({
+      const { error: apiError, data } = await addNote({
         title: formData.title.trim(),
         body: formData.body
       });
 
-      success('Note created successfully!', 'Success');
+      if (apiError || !data) {
+        throw new Error('Failed to create note');
+      }
+
+      success(t('noteCreated'), t('success'));
       setTimeout(() => navigate('/'), 1500);
     } catch (err) {
-      error('Error creating note. Please try again.', 'Creation Failed');
+      error(err.message || 'Error creating note. Please try again.', 'Creation Failed');
       console.error('Error adding note:', err);
     } finally {
       setIsSubmitting(false);
@@ -67,8 +72,8 @@ function AddNotePage() {
   const handleCancel = async () => {
     if (formData.title || formData.body) {
       const confirmed = await confirm(
-        'Are you sure you want to cancel? Your changes will be lost.',
-        'Discard Changes'
+        t('confirmCancelAddNote'),
+        t('discardChanges')
       );
       if (confirmed) {
         navigate('/');
@@ -85,22 +90,22 @@ function AddNotePage() {
       <div className="page-header">
         <h1 className="page-title">
           <Plus size={32} />
-          Add New Note
+          {t('addNewNote')}
         </h1>
-        <p className="page-subtitle">Create a new personal note with rich text support</p>
+        <p className="page-subtitle">          {t('createNewNote')}</p>
       </div>
 
       <form onSubmit={handleSubmit} className="add-note-form">
         <div className="form-group">
           <label htmlFor="title" className="form-label">
             <Type size={18} />
-            <span>Note Title <span className="required">*</span></span>
+            <span>{t('noteTitle')} <span className="required">*</span></span>
           </label>
           <input
             type="text"
             id="title"
             className="form-input"
-            placeholder="Enter note title..."
+            placeholder={t('enterNoteTitle')}
             value={formData.title}
             onChange={handleTitleChange}
             disabled={isSubmitting}
@@ -108,7 +113,7 @@ function AddNotePage() {
           />
           <div className="form-helper">
             <span className={`char-counter ${remainingChars < 10 ? 'warning' : ''}`}>
-              {remainingChars} characters remaining
+              {formatTranslation(t('charactersRemaining'), { count: remainingChars })}
             </span>
           </div>
         </div>
@@ -116,21 +121,21 @@ function AddNotePage() {
         <div className="form-group">
           <label htmlFor="body" className="form-label">
             <FileText size={18} />
-            <span>Note Content <span className="required">*</span></span>
+            <span>{t('noteContent')} <span className="required">*</span></span>
           </label>
           <div className="rich-text-info">
             <Lightbulb size={16} />
-            <span>Tip: You can use <strong>bold</strong>, <em>italic</em>, and other formatting</span>
+            <span dangerouslySetInnerHTML={{ __html: t('formattingTip') }} />
           </div>
           <div
             className="form-rich-input"
             contentEditable
-            data-placeholder="Start writing your note here... You can use formatting like bold, italic, and line breaks!"
+            data-placeholder={t('startWritingNote')}
             onInput={handleBodyChange}
             suppressContentEditableWarning={true}
           />
           <div className="form-helper">
-            Press <kbd>Enter</kbd> for new lines, select text to format
+            <span dangerouslySetInnerHTML={{ __html: t('enterTip') }} />
           </div>
         </div>
 
@@ -142,7 +147,7 @@ function AddNotePage() {
             disabled={isSubmitting}
           >
             <X size={16} />
-            <span>Cancel</span>
+            <span>{t('cancel')}</span>
           </button>
           
           <button
@@ -153,12 +158,12 @@ function AddNotePage() {
             {isSubmitting ? (
               <>
                 <Loader className="spin" size={16} />
-                <span>Creating...</span>
+                <span>{t('creating')}</span>
               </>
             ) : (
               <>
                 <Save size={16} />
-                <span>Create Note</span>
+                <span>{t('createNote')}</span>
               </>
             )}
           </button>

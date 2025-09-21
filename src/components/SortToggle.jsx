@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import { ArrowUpDown, Calendar, Clock } from 'lucide-react';
+import { useLanguage } from '../contexts/LanguageContext';
 
 function SortToggle({ onSort, notes }) {
+  const { t } = useLanguage();
   const [sortOrder, setSortOrder] = useState('newest');
 
   const handleSort = () => {
@@ -27,19 +29,19 @@ function SortToggle({ onSort, notes }) {
       className="sort-toggle"
       onClick={handleSort}
       type="button"
-      title={`Sort by ${sortOrder === 'newest' ? 'oldest' : 'newest'} first`}
+      title={sortOrder === 'newest' ? t('sortByOldest') : t('sortByNewest')}
     >
       <ArrowUpDown size={16} />
       <span className="sort-text">
         {sortOrder === 'newest' ? (
           <>
             <Calendar size={14} />
-            Newest First
+            {t('newestFirst')}
           </>
         ) : (
           <>
             <Clock size={14} />
-            Oldest First
+            {t('oldestFirst')}
           </>
         )}
       </span>
